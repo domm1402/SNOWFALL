@@ -63,7 +63,7 @@ private fun SnowfallPhone(activity:Activity){
     var columns by remember{mutableIntStateOf(prefs.getInt("grid",4).coerceIn(3,6))}
     var shape by remember{mutableIntStateOf(prefs.getInt("shape",0))}
     var labels by remember{mutableStateOf(prefs.getBoolean("labels",true))}
-    var monochrome by remember{mutableStateOf(prefs.getBoolean("monochrome",false))}
+    var monochrome by remember{mutableStateOf(prefs.getBoolean("monochrome",true))}
     var query by remember{mutableStateOf("")}
     val accent=palettes[theme][2]
     val apps=remember(activity){
@@ -170,7 +170,7 @@ private fun AppsPage(activity:Activity,apps:List<PhoneApp>,query:String,onQuery:
 @Composable
 private fun AppIcon(activity:Activity,app:PhoneApp,accent:Color,size:Float,labels:Boolean,shape:Int,monochrome:Boolean){
     val iconShape=when(shape){1->CircleShape;2->RoundedCornerShape(8.dp);3->RoundedCornerShape(18.dp);4->RoundedCornerShape(50.dp);else->RoundedCornerShape(20.dp)}
-    Column(Modifier.width(72.dp).clickable(onClick = { try { activity.packageManager.getLaunchIntentForPackage(app.packageName)?.let { launch -> activity.startActivity(launch) } } catch (_: Exception) { } }).padding(4.dp),horizontalAlignment=Alignment.CenterHorizontally){
+    Column(Modifier.widthIn(min=52.dp,max=72.dp).clickable(onClick = { try { activity.packageManager.getLaunchIntentForPackage(app.packageName)?.let { launch -> activity.startActivity(launch) } } catch (_: Exception) { } }).padding(4.dp),horizontalAlignment=Alignment.CenterHorizontally){
         Box(Modifier.size((48*size).dp.coerceIn(36.dp,72.dp)).clip(iconShape).background(if(monochrome) accent.copy(.16f) else Color.White.copy(.06f)),contentAlignment=Alignment.Center){
             AndroidView(factory={ImageView(it).apply{scaleType=ImageView.ScaleType.FIT_CENTER;setImageDrawable(app.info.loadIcon(activity.packageManager))}},update={view->view.imageTintList=if(monochrome) ColorStateList.valueOf(accent.toArgb()) else null},modifier=Modifier.fillMaxSize().padding(2.dp))
         }
