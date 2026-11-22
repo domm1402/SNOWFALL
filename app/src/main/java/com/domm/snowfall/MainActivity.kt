@@ -4,6 +4,7 @@ import android.app.Activity
 import android.app.WallpaperManager
 import android.content.ComponentName
 import android.content.Intent
+import android.content.res.ColorStateList
 import android.os.Bundle
 import android.content.pm.ResolveInfo
 import android.widget.ImageView
@@ -24,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -61,6 +63,7 @@ private fun SnowfallPhone(activity:Activity){
     var columns by remember{mutableIntStateOf(prefs.getInt("grid",4).coerceIn(3,6))}
     var shape by remember{mutableIntStateOf(prefs.getInt("shape",0))}
     var labels by remember{mutableStateOf(prefs.getBoolean("labels",true))}
+    var monochrome by remember{mutableStateOf(prefs.getBoolean("monochrome",false))}
     var query by remember{mutableStateOf("")}
     val accent=palettes[theme][2]
     val apps=remember(activity){
@@ -81,9 +84,9 @@ private fun SnowfallPhone(activity:Activity){
             }
         }){ pad->
             when(tab){
-                0->HomePage(activity,apps,theme,accent,size,labels,shape,{tab=1},{tab=2})
-                1->AppsPage(activity,apps,query,{query=it},accent,size,columns,labels,shape)
-                2->ThemePage(theme,{theme=it;prefs.edit().putInt("theme",it).apply()},size,{size=it;prefs.edit().putFloat("iconSize",it).apply()},columns,{columns=it;prefs.edit().putInt("grid",it).apply()},shape,{shape=it;prefs.edit().putInt("shape",it).apply()},labels,{labels=it;prefs.edit().putBoolean("labels",it).apply()},accent)
+                0->HomePage(activity,apps,theme,accent,size,labels,shape,monochrome,{tab=1},{tab=2})
+                1->AppsPage(activity,apps,query,{query=it},accent,size,columns,labels,shape,monochrome)
+                2->ThemePage(theme,{theme=it;prefs.edit().putInt("theme",it).apply()},size,{size=it;prefs.edit().putFloat("iconSize",it).apply()},columns,{columns=it;prefs.edit().putInt("grid",it).apply()},shape,{shape=it;prefs.edit().putInt("shape",it).apply()},labels,{labels=it;prefs.edit().putBoolean("labels",it).apply()},monochrome,{monochrome=it;prefs.edit().putBoolean("monochrome",it).apply()},accent)
                 else->WallpaperPage(activity,accent)
             }
         }
@@ -91,7 +94,7 @@ private fun SnowfallPhone(activity:Activity){
 }
 
 @Composable
-private fun HomePage(activity:Activity,apps:List<PhoneApp>,theme:Int,accent:Color,size:Float,labels:Boolean,shape:Int,goApps:()->Unit,goThemes:()->Unit){
+private fun HomePage(activity:Activity,apps:List<PhoneApp>,theme:Int,accent:Color,iconScale:Float,labels:Boolean,shape:Int,monochrome:Boolean,goApps:()->Unit,goThemes:()->Unit){
     val date=java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("EEEE, d MMMM"))
     val hour=java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))
     val favorites=apps.filter{a->val n=a.label.lowercase();n.contains("phone")||n.contains("camera")||n.contains("message")||n.contains("chrome")}.take(4)
@@ -125,7 +128,7 @@ private fun HomePage(activity:Activity,apps:List<PhoneApp>,theme:Int,accent:Colo
                 Text("EDIT",color=accent,fontSize=10.sp,letterSpacing=1.sp,modifier=Modifier.clickable{goApps()})
             }
             Spacer(Modifier.height(15.dp))
-            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){ favorites.forEach{AppIcon(activity,it,accent,size,labels,shape)} }
+            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){ favorites.forEach{AppIcon(activity,it,accent,iconScale,labels,shape,monochrome)} }
             Spacer(Modifier.height(24.dp))
             Row(verticalAlignment=Alignment.CenterVertically,modifier=Modifier.fillMaxWidth().clickable{goApps()}){
                 Text("APPLICATIONS",color=Color.White.copy(.8f),fontSize=11.sp,letterSpacing=2.sp,modifier=Modifier.weight(1f))
@@ -155,28 +158,28 @@ private fun HomePage(activity:Activity,apps:List<PhoneApp>,theme:Int,accent:Colo
     }
 }
 @Composable
-private fun AppsPage(activity:Activity,apps:List<PhoneApp>,query:String,onQuery:(String)->Unit,accent:Color,size:Float,grid:Int,labels:Boolean,shape:Int){
+private fun AppsPage(activity:Activity,apps:List<PhoneApp>,query:String,onQuery:(String)->Unit,accent:Color,size:Float,grid:Int,labels:Boolean,shape:Int,monochrome:Boolean){
     Column(Modifier.fillMaxSize().background(bg).padding(horizontal=16.dp)){
         Spacer(Modifier.height(22.dp));Text("App drawer",color=Color.White,fontSize=28.sp,fontWeight=FontWeight.Bold);Text(apps.size.toString()+" installed apps",color=muted);Spacer(Modifier.height(12.dp))
         OutlinedTextField(query,onQuery,modifier=Modifier.fillMaxWidth(),placeholder={Text("Search apps")},leadingIcon={Icon(Icons.Rounded.Search,null)},singleLine=true,shape=RoundedCornerShape(18.dp))
         val filtered=apps.filter{it.label.contains(query,true)}
-        LazyVerticalGrid(columns=GridCells.Fixed(grid),contentPadding=PaddingValues(vertical=16.dp),horizontalArrangement=Arrangement.spacedBy(4.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) { items(filtered,key={it.packageName}) { AppIcon(activity,it,accent,size,labels,shape) } }
+        LazyVerticalGrid(columns=GridCells.Fixed(grid),contentPadding=PaddingValues(vertical=16.dp),horizontalArrangement=Arrangement.spacedBy(4.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) { items(filtered,key={it.packageName}) { AppIcon(activity,it,accent,size,labels,shape,monochrome) } }
     }
 }
 
 @Composable
-private fun AppIcon(activity:Activity,app:PhoneApp,accent:Color,size:Float,labels:Boolean,shape:Int){
+private fun AppIcon(activity:Activity,app:PhoneApp,accent:Color,size:Float,labels:Boolean,shape:Int,monochrome:Boolean){
     val iconShape=when(shape){1->CircleShape;2->RoundedCornerShape(8.dp);3->RoundedCornerShape(18.dp);4->RoundedCornerShape(50.dp);else->RoundedCornerShape(20.dp)}
     Column(Modifier.width(72.dp).clickable(onClick = { try { activity.packageManager.getLaunchIntentForPackage(app.packageName)?.let { launch -> activity.startActivity(launch) } } catch (_: Exception) { } }).padding(4.dp),horizontalAlignment=Alignment.CenterHorizontally){
-        Box(Modifier.size((48*size).dp.coerceIn(36.dp,72.dp)).clip(iconShape).background(Color.White.copy(.06f)),contentAlignment=Alignment.Center){
-            AndroidView(factory={ImageView(it).apply{scaleType=ImageView.ScaleType.FIT_CENTER;setImageDrawable(app.info.loadIcon(activity.packageManager))}},modifier=Modifier.fillMaxSize().padding(2.dp))
+        Box(Modifier.size((48*size).dp.coerceIn(36.dp,72.dp)).clip(iconShape).background(if(monochrome) accent.copy(.16f) else Color.White.copy(.06f)),contentAlignment=Alignment.Center){
+            AndroidView(factory={ImageView(it).apply{scaleType=ImageView.ScaleType.FIT_CENTER;setImageDrawable(app.info.loadIcon(activity.packageManager))}},update={view->view.imageTintList=if(monochrome) ColorStateList.valueOf(accent.toArgb()) else null},modifier=Modifier.fillMaxSize().padding(2.dp))
         }
         if(labels)Text(app.label,color=Color.White,fontSize=10.sp,maxLines=1,textAlign=TextAlign.Center)
     }
 }
 
 @Composable
-private fun ThemePage(theme:Int,setTheme:(Int)->Unit,size:Float,setSize:(Float)->Unit,grid:Int,setGrid:(Int)->Unit,shape:Int,setShape:(Int)->Unit,labels:Boolean,setLabels:(Boolean)->Unit,accent:Color){
+private fun ThemePage(theme:Int,setTheme:(Int)->Unit,size:Float,setSize:(Float)->Unit,grid:Int,setGrid:(Int)->Unit,shape:Int,setShape:(Int)->Unit,labels:Boolean,setLabels:(Boolean)->Unit,monochrome:Boolean,setMonochrome:(Boolean)->Unit,accent:Color){
     val ctx=androidx.compose.ui.platform.LocalContext.current
     val p=remember{ctx.getSharedPreferences("snowfall-extra",Activity.MODE_PRIVATE)}
     val groups=remember{listOf(
@@ -195,7 +198,9 @@ private fun ThemePage(theme:Int,setTheme:(Int)->Unit,size:Float,setSize:(Float)-
         Text("Icon size: "+(size*100).toInt()+"%",color=Color.White);Slider(value=size,onValueChange=setSize,valueRange=.65f..1.35f)
         Text("App grid columns: "+grid,color=Color.White);Row{(3..6).forEach{FilterChip(selected=grid==it,onClick={setGrid(it)},label={Text(it.toString())})}}
         Row(verticalAlignment=Alignment.CenterVertically){Text("Show app names",color=Color.White,modifier=Modifier.weight(1f));Switch(labels,setLabels)}
-        Spacer(Modifier.height(16.dp));Text("100 CUSTOMIZATION SWITCHES",color=accent,fontWeight=FontWeight.Bold);Text("Advanced items are stored as preferences. Only controls above and app launching currently change live launcher behavior.",color=muted,fontSize=12.sp)
+        Spacer(Modifier.height(16.dp));Row(verticalAlignment=Alignment.CenterVertically){Text("Monochrome app icons",color=Color.White,modifier=Modifier.weight(1f));Switch(monochrome,setMonochrome)}
+Text("Tint installed icons to match the selected winter theme.",color=muted,fontSize=12.sp)
+Spacer(Modifier.height(18.dp));Text("100 STORED-ONLY PREFERENCE SWITCHES",color=accent,fontWeight=FontWeight.Bold);Text("These 100 advanced switches save preferences only. They do not currently activate the listed feature. The live controls are theme preset, icon shape, icon size, grid columns, app labels, monochrome tint, app launching, and live wallpaper.",color=muted,fontSize=12.sp)
         var index=0
         groups.forEach{(heading,list)->Text(heading.uppercase(),color=Color.White,fontWeight=FontWeight.Bold,modifier=Modifier.padding(top=16.dp,bottom=6.dp));list.forEach{name->val id=index;Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Text(name,color=Color.White,fontSize=13.sp,modifier=Modifier.weight(1f));Switch(states[id],{v->states=states.toMutableList().also{it[id]=v};p.edit().putBoolean("option"+id,v).apply()})};index++}}
     }
