@@ -10,6 +10,7 @@ import android.view.SurfaceHolder
 import kotlin.random.Random
 
 class SnowWallpaperService : WallpaperService() {
+    private data class Flake(var x: Float, var y: Float, var radius: Float, var speed: Float)
     override fun onCreateEngine(): Engine = SnowEngine()
 
     inner class SnowEngine : Engine() {
@@ -18,7 +19,6 @@ class SnowWallpaperService : WallpaperService() {
         private var running = false
         private var width = 1
         private var height = 1
-        private data class Flake(var x: Float, var y: Float, var radius: Float, var speed: Float)
         private val flakes = List(220) { Flake(Random.nextFloat(), Random.nextFloat(), 1f + Random.nextFloat() * 2.4f, .4f + Random.nextFloat() * 1.2f) }
         private val drawRunnable = object : Runnable { override fun run() { render() } }
 
