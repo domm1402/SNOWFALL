@@ -139,7 +139,7 @@ private fun AppsPage(activity:Activity,apps:List<PhoneApp>,query:String,onQuery:
 @Composable
 private fun AppIcon(activity:Activity,app:PhoneApp,accent:Color,size:Float,labels:Boolean,shape:Int){
     val iconShape=when(shape){1->CircleShape;2->RoundedCornerShape(8.dp);3->RoundedCornerShape(18.dp);4->RoundedCornerShape(50.dp);else->RoundedCornerShape(20.dp)}
-    Column(Modifier.width(72.dp).clickable{try{activity.packageManager.getLaunchIntentForPackage(app.packageName)?.let{activity.startActivity(it)}}catch(_:Exception){} }.padding(4.dp),horizontalAlignment=Alignment.CenterHorizontally){
+    Column(Modifier.width(72.dp).clickable(onClick = { try { activity.packageManager.getLaunchIntentForPackage(app.packageName)?.let { launch -> activity.startActivity(launch) } } catch (_: Exception) { } }).padding(4.dp),horizontalAlignment=Alignment.CenterHorizontally){
         Box(Modifier.size((48*size).dp.coerceIn(36.dp,72.dp)).clip(iconShape).background(Color.White.copy(.06f)),contentAlignment=Alignment.Center){
             AndroidView(factory={ImageView(it).apply{scaleType=ImageView.ScaleType.FIT_CENTER;setImageDrawable(app.info.loadIcon(activity.packageManager)}},modifier=Modifier.fillMaxSize().padding(2.dp))
         }
