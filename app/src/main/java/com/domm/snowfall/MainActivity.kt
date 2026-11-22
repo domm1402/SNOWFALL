@@ -92,40 +92,68 @@ private fun SnowfallPhone(activity:Activity){
 
 @Composable
 private fun HomePage(activity:Activity,apps:List<PhoneApp>,theme:Int,accent:Color,size:Float,labels:Boolean,shape:Int,goApps:()->Unit,goThemes:()->Unit){
-    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(palettes[theme])).padding(22.dp)){
-        Column(Modifier.fillMaxSize()){
+    val date=java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("EEEE, d MMMM"))
+    val hour=java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))
+    val favorites=apps.filter{a->val n=a.label.lowercase();n.contains("phone")||n.contains("camera")||n.contains("message")||n.contains("chrome")}.take(4)
+    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(palettes[theme][0],palettes[theme][1],bg)))){
+        Canvas(Modifier.fillMaxSize()){ repeat(70){i-> drawCircle(Color.White.copy(.12f+(i%5)*.04f),1f+(i%2),androidx.compose.ui.geometry.Offset((i*91f)%size.width,(i*157f)%size.height)) } }
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal=24.dp, vertical=26.dp)){
             Row(verticalAlignment=Alignment.CenterVertically){
-                Column(Modifier.weight(1f)){Text("SNOWFALL",color=Color.White,fontWeight=FontWeight.Bold,letterSpacing=3.sp);Text("WINTER HOME",color=Color.White.copy(.6f),fontSize=10.sp)}
-                IconButton(onClick=goThemes){Icon(Icons.Rounded.Tune,"Personalize",tint=accent)}
+                Column(Modifier.weight(1f)){
+                    Text("SNOWFALL",color=Color.White,fontWeight=FontWeight.Bold,letterSpacing=4.sp,fontSize=13.sp)
+                    Text("WINTER EDITION  /  01",color=Color.White.copy(.52f),fontSize=9.sp,letterSpacing=2.sp)
+                }
+                Text("✳",color=accent,fontSize=22.sp)
+                IconButton(onClick=goThemes){Icon(Icons.Rounded.Tune,"Personalize",tint=Color.White.copy(.8f))}
             }
+            Spacer(Modifier.height(38.dp))
+            Text(hour,color=Color.White,fontSize=66.sp,fontWeight=FontWeight.ExtraLight,letterSpacing=(-2).sp)
+            Text(date.uppercase(),color=Color.White.copy(.62f),fontSize=11.sp,letterSpacing=1.5.sp)
+            Spacer(Modifier.height(30.dp))
+            Box(Modifier.fillMaxWidth().height(220.dp).clip(RoundedCornerShape(26.dp)).background(Brush.linearGradient(listOf(palettes[theme][1],palettes[theme][0],Color(0xFF07101A))))) ){
+                Canvas(Modifier.fillMaxSize()){ repeat(90){i->drawCircle(Color.White.copy(.28f+(i%4)*.08f),1f+(i%3),androidx.compose.ui.geometry.Offset((i*71f)%size.width,(i*139f)%size.height)) };drawCircle(accent.copy(.09f),size.minDimension*.35f,androidx.compose.ui.geometry.Offset(size.width*.74f,size.height*.25f)) }
+                Column(Modifier.align(Alignment.BottomStart).padding(22.dp)){
+                    Text("SEASONAL WALLPAPER",color=Color.White.copy(.65f),fontSize=9.sp,letterSpacing=2.sp)
+                    Text("Quietly frozen.",color=Color.White,fontSize=25.sp,fontWeight=FontWeight.Light)
+                    Text("Live snow • Ambient light",color=Color.White.copy(.7f),fontSize=11.sp)
+                }
+                Text("↗",color=Color.White.copy(.8f),modifier=Modifier.align(Alignment.TopEnd).padding(18.dp).clickable{goThemes()},fontSize=18.sp)
+            }
+            Spacer(Modifier.height(30.dp))
+            Row(verticalAlignment=Alignment.CenterVertically){
+                Text("FAVORITES",color=Color.White.copy(.6f),fontSize=10.sp,letterSpacing=2.sp,modifier=Modifier.weight(1f))
+                Text("EDIT",color=accent,fontSize=10.sp,letterSpacing=1.sp,modifier=Modifier.clickable{goApps()})
+            }
+            Spacer(Modifier.height(15.dp))
+            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){ favorites.forEach{AppIcon(activity,it,accent,size,labels,shape)} }
             Spacer(Modifier.height(24.dp))
-            Text("10:08",color=Color.White,fontSize=56.sp,fontWeight=FontWeight.Light)
-            Text("Sunday • November 22",color=Color.White.copy(.8f))
+            Row(verticalAlignment=Alignment.CenterVertically,modifier=Modifier.fillMaxWidth().clickable{goApps()}){
+                Text("APPLICATIONS",color=Color.White.copy(.8f),fontSize=11.sp,letterSpacing=2.sp,modifier=Modifier.weight(1f))
+                Text("Browse all  ·  "+apps.size,color=Color.White.copy(.6f),fontSize=11.sp)
+                Icon(Icons.Rounded.ArrowForward,null,tint=accent,modifier=Modifier.padding(start=8.dp))
+            }
+            Spacer(Modifier.height(20.dp))
+            Row(Modifier.fillMaxWidth().height(68.dp).clip(RoundedCornerShape(18.dp)).background(Color.White.copy(.045f)).clickable{goApps()}.padding(horizontal=16.dp),verticalAlignment=Alignment.CenterVertically){
+                apps.take(4).forEach{AppIcon(activity,it,accent,.78f,false,shape)}
+                Spacer(Modifier.weight(1f))
+                Icon(Icons.Rounded.Search,null,tint=Color.White.copy(.7f),modifier=Modifier.padding(end=4.dp))
+            }
             Spacer(Modifier.height(18.dp))
-            Card(colors=CardDefaults.cardColors(containerColor=Color.White.copy(.09f)),shape=RoundedCornerShape(24.dp)){
-                Row(Modifier.fillMaxWidth().padding(16.dp),verticalAlignment=Alignment.CenterVertically){
-                    Icon(Icons.Rounded.AcUnit,null,tint=accent,modifier=Modifier.size(30.dp));Spacer(Modifier.width(12.dp))
-                    Column(Modifier.weight(1f)){Text("Winter atmosphere",color=Color.White,fontWeight=FontWeight.SemiBold);Text("Snowfall live wallpaper",color=Color.White.copy(.65f),fontSize=12.sp)}
-                    Icon(Icons.Rounded.ChevronRight,null,tint=Color.White.copy(.7f))
-                }
+            Row(verticalAlignment=Alignment.CenterVertically){
+                Text("ATMOSPHERE",color=Color.White.copy(.55f),fontSize=9.sp,letterSpacing=2.sp,modifier=Modifier.weight(1f))
+                Text(themeNames[theme].uppercase(),color=accent,fontSize=10.sp,letterSpacing=1.sp,modifier=Modifier.clickable{goThemes()})
             }
-            Spacer(Modifier.weight(1f))
-            Text("FAVORITES",color=Color.White.copy(.65f),fontSize=11.sp,letterSpacing=2.sp)
-            Spacer(Modifier.height(10.dp))
-            val favorites=apps.filter{a->val n=a.label.lowercase();n.contains("phone")||n.contains("camera")||n.contains("message")||n.contains("chrome")}.take(4)
-            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceEvenly){favorites.forEach{AppIcon(activity,it,accent,size,labels,shape)}}
-            Spacer(Modifier.height(14.dp))
-            Card(colors=CardDefaults.cardColors(containerColor=Color.White.copy(.11f)),shape=RoundedCornerShape(26.dp)){
-                Row(Modifier.fillMaxWidth().padding(12.dp),horizontalArrangement=Arrangement.SpaceEvenly,verticalAlignment=Alignment.CenterVertically){
-                    apps.take(4).forEach{AppIcon(activity,it,accent,size,false,shape)}
-                    Box(Modifier.size(46.dp).clip(CircleShape).background(accent.copy(.2f)).clickable{goApps()},contentAlignment=Alignment.Center){Icon(Icons.Rounded.Apps,"App drawer",tint=accent)}
-                }
+            Spacer(Modifier.height(12.dp))
+            Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){
+                Text("Snowfall",color=Color.White.copy(.7f),fontSize=12.sp)
+                Text("•",color=accent)
+                Text("Soft glow",color=Color.White.copy(.7f),fontSize=12.sp)
+                Text("•",color=accent)
+                Text("Slow drift",color=Color.White.copy(.7f),fontSize=12.sp)
             }
-            Text("Tap Apps to open your full app drawer",color=Color.White.copy(.55f),modifier=Modifier.fillMaxWidth().padding(top=10.dp),textAlign=TextAlign.Center,fontSize=11.sp)
         }
     }
 }
-
 @Composable
 private fun AppsPage(activity:Activity,apps:List<PhoneApp>,query:String,onQuery:(String)->Unit,accent:Color,size:Float,grid:Int,labels:Boolean,shape:Int){
     Column(Modifier.fillMaxSize().background(bg).padding(horizontal=16.dp)){
