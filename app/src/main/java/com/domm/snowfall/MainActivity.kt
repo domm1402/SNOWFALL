@@ -63,7 +63,7 @@ private fun SnowfallPhone(activity:Activity){
     var columns by remember{mutableIntStateOf(prefs.getInt("grid",4).coerceIn(3,6))}
     var shape by remember{mutableIntStateOf(prefs.getInt("shape",0))}
     var labels by remember{mutableStateOf(prefs.getBoolean("labels",true))}
-    var monochrome by remember{mutableStateOf(prefs.getBoolean("monochrome",true))}
+    var monochrome by remember{mutableStateOf(prefs.getBoolean("monochrome",false))}
     var query by remember{mutableStateOf("")}
     val accent=palettes[theme][2]
     val apps=remember(activity){
@@ -75,11 +75,17 @@ private fun SnowfallPhone(activity:Activity){
     }
     MaterialTheme(colorScheme=darkColorScheme(primary=accent,background=bg,surface=Color(0xFF142237))){
         Scaffold(containerColor=bg,bottomBar={
-            NavigationBar(containerColor=Color(0xFF0B1726)){
-                listOf("Home","Apps","Themes","Snow").forEachIndexed{i,n->
-                    val icons=listOf(Icons.Rounded.Home,Icons.Rounded.Apps,Icons.Rounded.Palette,Icons.Rounded.AcUnit)
-                    NavigationBarItem(selected=tab==i,onClick={tab=i},icon={Icon(icons[i],null)},label={Text(n)},
-                    colors=NavigationBarItemDefaults.colors(selectedIconColor=accent,selectedTextColor=accent,indicatorColor=Color(0xFF142237),unselectedIconColor=muted,unselectedTextColor=muted))
+            Column(Modifier.fillMaxWidth().background(Color(0xFF091321))) {
+                Box(Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(.07f)))
+                Row(Modifier.fillMaxWidth().height(62.dp).padding(horizontal=8.dp),verticalAlignment=Alignment.CenterVertically){
+                    listOf("Home","Apps","Themes","Snow").forEachIndexed{i,n->
+                        val icons=listOf(Icons.Rounded.Home,Icons.Rounded.Apps,Icons.Rounded.Palette,Icons.Rounded.AcUnit)
+                        Column(Modifier.weight(1f).fillMaxHeight().clickable{tab=i}.padding(top=7.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.SpaceBetween){
+                            Icon(icons[i],null,tint=if(tab==i)accent else muted,modifier=Modifier.size(20.dp))
+                            Text(n,color=if(tab==i)accent else muted,fontSize=10.sp,letterSpacing=.3.sp)
+                            Box(Modifier.width(18.dp).height(2.dp).background(if(tab==i)accent else Color.Transparent))
+                        }
+                    }
                 }
             }
         }){ pad->
@@ -113,7 +119,7 @@ private fun HomePage(activity:Activity,apps:List<PhoneApp>,theme:Int,accent:Colo
             Text(hour,color=Color.White,fontSize=66.sp,fontWeight=FontWeight.ExtraLight,letterSpacing=(-2).sp)
             Text(date.uppercase(),color=Color.White.copy(.62f),fontSize=11.sp,letterSpacing=1.5.sp)
             Spacer(Modifier.height(30.dp))
-            Box(Modifier.fillMaxWidth().height(220.dp).clip(RoundedCornerShape(26.dp)).background(Brush.linearGradient(listOf(palettes[theme][1],palettes[theme][0],Color(0xFF07101A))))){
+            Box(Modifier.fillMaxWidth().height(190.dp).background(Brush.linearGradient(listOf(palettes[theme][1],palettes[theme][0],Color(0xFF07101A))))){
                 Canvas(Modifier.fillMaxSize()){ repeat(90){i->drawCircle(Color.White.copy(.28f+(i%4)*.08f),1f+(i%3),androidx.compose.ui.geometry.Offset((i*71f)%360f,(i*139f)%220f)) };drawCircle(accent.copy(.09f),80f,androidx.compose.ui.geometry.Offset(270f,50f)) }
                 Column(Modifier.align(Alignment.BottomStart).padding(22.dp)){
                     Text("SEASONAL WALLPAPER",color=Color.White.copy(.65f),fontSize=9.sp,letterSpacing=2.sp)
@@ -136,7 +142,7 @@ private fun HomePage(activity:Activity,apps:List<PhoneApp>,theme:Int,accent:Colo
                 Icon(Icons.Rounded.ArrowForward,null,tint=accent,modifier=Modifier.padding(start=8.dp))
             }
             Spacer(Modifier.height(20.dp))
-            Row(Modifier.fillMaxWidth().height(68.dp).clip(RoundedCornerShape(18.dp)).background(Color.White.copy(.045f)).clickable{goApps()}.padding(horizontal=16.dp),verticalAlignment=Alignment.CenterVertically){
+            Row(Modifier.fillMaxWidth().height(62.dp).background(Color.White.copy(.045f)).clickable{goApps()}.padding(horizontal=16.dp),verticalAlignment=Alignment.CenterVertically){
                 apps.take(4).forEach{AppIcon(activity,it,accent,.78f,false,shape,monochrome)}
                 Spacer(Modifier.weight(1f))
                 Icon(Icons.Rounded.Search,null,tint=Color.White.copy(.7f),modifier=Modifier.padding(end=4.dp))
@@ -180,29 +186,58 @@ private fun AppIcon(activity:Activity,app:PhoneApp,accent:Color,size:Float,label
 
 @Composable
 private fun ThemePage(theme:Int,setTheme:(Int)->Unit,size:Float,setSize:(Float)->Unit,grid:Int,setGrid:(Int)->Unit,shape:Int,setShape:(Int)->Unit,labels:Boolean,setLabels:(Boolean)->Unit,monochrome:Boolean,setMonochrome:(Boolean)->Unit,accent:Color){
-    val ctx=androidx.compose.ui.platform.LocalContext.current
-    val p=remember{ctx.getSharedPreferences("snowfall-extra",Activity.MODE_PRIVATE)}
-    val groups=remember{listOf(
-        "Home screen" to listOf("Page swipe","Page loop","Layout lock","Auto arrange","Dock blur","Dock opacity","Page dots","Wallpaper parallax","Widget snap","Folder previews","Folder animation","Folder tint","Folder size","Home padding","Safe zones","Page count","Home page selection","Tap haptics","Double tap shortcut","Icon labels shadow"),
-        "App drawer" to listOf("Search field","Alphabet scroll","Recent apps","Suggestions","Drawer blur","Drawer opacity","Vertical scrolling","Page layout","App labels","Hide apps","Sort alphabetically","Sort by install date","Usage sorting","System apps visibility","Notification dots","Badge counts","Search hints","Auto keyboard","Quick scroll","Open animation"),
-        "Icon options" to listOf("Themed icons","Monochrome","Drop shadows","Adaptive masks","Dynamic colors","Borders","Glow","Press effect","Bounce","Tint","Saturation","Contrast","Round corners","Pack compatibility","Rename apps","Glyph overrides","Individual scale","Small icons","Large icons","Reset"),
-        "Widgets" to listOf("Clock","Date","Weather panel","Calendar","Battery","Music","Notes","Photo tile","Transparency","Roundness","Shadows","Padding","Resize","Snap","Stack","Background","Accent color","Animation","Preview","Refresh"),
-        "Gestures and motion" to listOf("Pull-down action","Swipe-up drawer","Double-tap","Long-press edit","Haptic taps","Page animation","Spring effect","Fade","Reduce motion","Parallax","Scroll damping","Quick launch","Back hints","Home hints","Gesture vibration","Sensitivity","Edge swipe","Rotate screen","Tilt","Ambient motion"))}
-    var states by remember{mutableStateOf((0 until 100).map{p.getBoolean("option"+it,true)}.toMutableList())}
-    Column(Modifier.fillMaxSize().background(bg).verticalScroll(rememberScrollState()).padding(18.dp)){
-        Text("Personalize your phone",color=Color.White,fontSize=28.sp,fontWeight=FontWeight.Bold);Text("Launcher theme, icons, and layout",color=muted);Spacer(Modifier.height(18.dp))
-        Text("THEME PACKS",color=accent,fontWeight=FontWeight.Bold)
-        themeNames.forEachIndexed{i,n->Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color(0xFF142237)).clickable{setTheme(i)}.padding(12.dp),verticalAlignment=Alignment.CenterVertically){Box(Modifier.size(55.dp,40.dp).clip(RoundedCornerShape(10.dp)).background(Brush.verticalGradient(palettes[i])));Spacer(Modifier.width(12.dp));Text(n,color=Color.White,modifier=Modifier.weight(1f));if(theme==i)Icon(Icons.Rounded.CheckCircle,null,tint=palettes[i][2])};Spacer(Modifier.height(7.dp))}
-        Spacer(Modifier.height(12.dp));Text("ICON SHAPE",color=accent,fontWeight=FontWeight.Bold)
-        Row(horizontalArrangement=Arrangement.spacedBy(4.dp)){listOf("Default","Circle","Square","Rounded","Frost").forEachIndexed{i,n->FilterChip(selected=shape==i,onClick={setShape(i)},label={Text(n)})}}
-        Text("Icon size: "+(size*100).toInt()+"%",color=Color.White);Slider(value=size,onValueChange=setSize,valueRange=.65f..1.35f)
-        Text("App grid columns: "+grid,color=Color.White);Row{(3..6).forEach{FilterChip(selected=grid==it,onClick={setGrid(it)},label={Text(it.toString())})}}
-        Row(verticalAlignment=Alignment.CenterVertically){Text("Show app names",color=Color.White,modifier=Modifier.weight(1f));Switch(labels,setLabels)}
-        Spacer(Modifier.height(16.dp));Row(verticalAlignment=Alignment.CenterVertically){Text("Monochrome app icons",color=Color.White,modifier=Modifier.weight(1f));Switch(monochrome,setMonochrome)}
-Text("Tint installed icons to match the selected winter theme.",color=muted,fontSize=12.sp)
-Spacer(Modifier.height(18.dp));Text("100 STORED-ONLY PREFERENCE SWITCHES",color=accent,fontWeight=FontWeight.Bold);Text("These 100 advanced switches save preferences only. They do not currently activate the listed feature. The live controls are theme preset, icon shape, icon size, grid columns, app labels, monochrome tint, app launching, and live wallpaper.",color=muted,fontSize=12.sp)
-        var index=0
-        groups.forEach{(heading,list)->Text(heading.uppercase(),color=Color.White,fontWeight=FontWeight.Bold,modifier=Modifier.padding(top=16.dp,bottom=6.dp));list.forEach{name->val id=index;Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Text(name,color=Color.White,fontSize=13.sp,modifier=Modifier.weight(1f));Switch(states[id],{v->states=states.toMutableList().also{it[id]=v};p.edit().putBoolean("option"+id,v).apply()})};index++}}
+    Column(Modifier.fillMaxSize().background(bg).verticalScroll(rememberScrollState()).padding(horizontal=22.dp,vertical=24.dp)){
+        Text("PERSONALIZATION",color=muted,fontSize=10.sp,letterSpacing=2.6.sp)
+        Spacer(Modifier.height(7.dp))
+        Text("Make it yours.",color=Color.White,fontSize=30.sp,fontWeight=FontWeight.Light,letterSpacing=(-.7).sp)
+        Text("A quieter home for your apps.",color=muted,fontSize=13.sp)
+        Spacer(Modifier.height(28.dp))
+        Text("SEASONAL PALETTES",color=accent,fontSize=10.sp,fontWeight=FontWeight.Bold,letterSpacing=2.sp)
+        Spacer(Modifier.height(12.dp))
+        themeNames.forEachIndexed{i,n->
+            Row(Modifier.fillMaxWidth().clickable{setTheme(i)}.padding(vertical=9.dp),verticalAlignment=Alignment.CenterVertically){
+                Box(Modifier.width(68.dp).height(40.dp).background(Brush.horizontalGradient(palettes[i])))
+                Spacer(Modifier.width(14.dp))
+                Column(Modifier.weight(1f)){
+                    Text(n,color=Color.White,fontSize=15.sp,fontWeight=if(theme==i)FontWeight.Medium else FontWeight.Normal)
+                    Text(if(theme==i)"CURRENT PALETTE" else "WINTER COLORWAY",color=muted,fontSize=9.sp,letterSpacing=1.2.sp)
+                }
+                if(theme==i)Icon(Icons.Rounded.Check,null,tint=palettes[i][2],modifier=Modifier.size(18.dp))
+            }
+            Box(Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(.055f)))
+        }
+        Spacer(Modifier.height(26.dp))
+        Text("ICON FORM",color=accent,fontSize=10.sp,fontWeight=FontWeight.Bold,letterSpacing=2.sp)
+        Spacer(Modifier.height(10.dp))
+        Row(horizontalArrangement=Arrangement.spacedBy(5.dp)){listOf("Default","Circle","Square","Rounded","Frost").forEachIndexed{i,n->FilterChip(selected=shape==i,onClick={setShape(i)},label={Text(n)},shape=RoundedCornerShape(5.dp))}}
+        Spacer(Modifier.height(20.dp))
+        Text("ICON SCALE   ${(size*100).toInt()}%",color=Color.White,fontSize=12.sp)
+        Slider(value=size,onValueChange=setSize,valueRange=.65f..1.35f)
+        Spacer(Modifier.height(12.dp))
+        Text("DRAWER GRID   $grid COLUMNS",color=Color.White,fontSize=12.sp)
+        Spacer(Modifier.height(8.dp))
+        Row(horizontalArrangement=Arrangement.spacedBy(6.dp)){(3..6).forEach{FilterChip(selected=grid==it,onClick={setGrid(it)},label={Text(it.toString())},shape=RoundedCornerShape(5.dp))}}
+        Spacer(Modifier.height(18.dp))
+        Box(Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(.08f)))
+        Row(Modifier.fillMaxWidth().padding(vertical=14.dp),verticalAlignment=Alignment.CenterVertically){
+            Column(Modifier.weight(1f)){
+                Text("App names",color=Color.White,fontSize=14.sp)
+                Text("Show labels under icons",color=muted,fontSize=11.sp)
+            }
+            Switch(labels,setLabels)
+        }
+        Box(Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(.08f)))
+        Row(Modifier.fillMaxWidth().padding(vertical=14.dp),verticalAlignment=Alignment.CenterVertically){
+            Column(Modifier.weight(1f)){
+                Text("Winter icon tint",color=Color.White,fontSize=14.sp)
+                Text("Apply the selected accent to icons",color=muted,fontSize=11.sp)
+            }
+            Switch(monochrome,setMonochrome)
+        }
+        Box(Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(.08f)))
+        Spacer(Modifier.height(24.dp))
+        Text("LIVE FEATURES",color=accent,fontSize=10.sp,fontWeight=FontWeight.Bold,letterSpacing=2.sp)
+        Text("These controls update the launcher immediately. Wallpaper motion and snow settings live in Snow Studio.",color=muted,fontSize=12.sp,lineHeight=18.sp)
     }
 }
 
