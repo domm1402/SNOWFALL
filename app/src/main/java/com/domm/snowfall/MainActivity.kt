@@ -5,14 +5,14 @@ import android.app.WallpaperManager
 import android.content.ComponentName
 import android.content.Intent
 import android.os.Bundle
+import android.content.pm.ResolveInfo
+import android.widget.ImageView
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.animation.core.*
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.grid.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
@@ -21,292 +21,273 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.*
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlin.random.Random
+import androidx.compose.ui.viewinterop.AndroidView
 
-private val bg = Color(0xFF07111F)
-private val surface = Color(0xFF101F32)
-private val surface2 = Color(0xFF172B42)
-private val ice = Color(0xFF9EDCFF)
-private val pale = Color(0xFFDCEAF8)
-private val dim = Color(0xFF8198B1)
+private val night = Color(0xFF08101D)
+private val panel = Color(0xFF111E30)
+private val muted = Color(0xFF9AADC5)
+private val snow = Color(0xFFDDEEFF)
+private val palettes = listOf(
+    listOf(Color(0xFF08101D), Color(0xFF16334D), Color(0xFF73B7E8)),
+    listOf(Color(0xFF16151C), Color(0xFF363746), Color(0xFFB8B9C8)),
+    listOf(Color(0xFF071A20), Color(0xFF145060), Color(0xFF8CE5D4)),
+    listOf(Color(0xFF180D29), Color(0xFF46265F), Color(0xFFD0A5FF)),
+    listOf(Color(0xFF201209), Color(0xFF69401B), Color(0xFFF2BD63)),
+    listOf(Color(0xFF240C16), Color(0xFF752C45), Color(0xFFFF9DBB)),
+    listOf(Color(0xFF061A10), Color(0xFF20533A), Color(0xFF92E8A7)),
+    listOf(Color(0xFF101010), Color(0xFF292929), Color(0xFFEAEAEA))
+)
+private val paletteNames = listOf("Blue Hour", "Silver", "Arctic", "Violet", "Amber", "Rose", "Aurora", "Mono")
+
+data class LauncherApp(val label: String, val packageName: String, val resolveInfo: ResolveInfo)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { SnowfallApp(this) }
+        setContent { SnowfallLauncher(this) }
     }
 }
 
 @Composable
-private fun SnowfallApp(activity: Activity) {
+private fun SnowfallLauncher(activity: Activity) {
     val prefs = remember { activity.getSharedPreferences("snowfall", Activity.MODE_PRIVATE) }
-    var tab by remember { mutableIntStateOf(0) }
-    var snow by remember { mutableFloatStateOf(prefs.getFloat("snow", .68f)) }
-    var wind by remember { mutableFloatStateOf(prefs.getFloat("wind", .42f)) }
-    var size by remember { mutableFloatStateOf(prefs.getFloat("size", .5f)) }
-    var glow by remember { mutableStateOf(prefs.getBoolean("glow", true)) }
-    var twinkle by remember { mutableStateOf(prefs.getBoolean("twinkle", true)) }
-    var moon by remember { mutableStateOf(prefs.getBoolean("moon", true)) }
-    var clouds by remember { mutableStateOf(prefs.getBoolean("clouds", false)) }
-    var ambient by remember { mutableStateOf(prefs.getBoolean("ambient", false)) }
-    var snowfall by remember { mutableStateOf(prefs.getBoolean("snowfall", true)) }
-    var preset by remember { mutableIntStateOf(prefs.getInt("preset", 0)) }
-    var showHelp by remember { mutableStateOf(false) }
-
-    fun persist() {
-        prefs.edit().putFloat("snow", snow).putFloat("wind", wind).putFloat("size", size)
-            .putBoolean("glow", glow).putBoolean("twinkle", twinkle).putBoolean("moon", moon)
-            .putBoolean("clouds", clouds).putBoolean("ambient", ambient).putBoolean("snowfall", snowfall)
-            .putInt("preset", preset).apply()
+    var page by remember { mutableIntStateOf(0) }
+    var theme by remember { mutableIntStateOf(prefs.getInt("launcher_theme", 0)) }
+    var iconStyle by remember { mutableIntStateOf(prefs.getInt("icon_style", 0)) }
+    var iconScale by remember { mutableFloatStateOf(prefs.getFloat("icon_scale", .85f)) }
+    var gridColumns by remember { mutableIntStateOf(prefs.getInt("grid_columns", 4)) }
+    var labels by remember { mutableStateOf(prefs.getBoolean("labels", true)) }
+    var search by remember { mutableStateOf("") }
+    var appFilter by remember { mutableIntStateOf(0) }
+    val accent = palettes[theme][2]
+    val apps = remember(activity) {
+        val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+        activity.packageManager.queryIntentActivities(intent, 0)
+            .mapNotNull { ri ->
+                val pkg = ri.activityInfo?.packageName ?: return@mapNotNull null
+                if (pkg == activity.packageName) return@mapNotNull null
+                LauncherApp(ri.loadLabel(activity.packageManager).toString(), pkg, ri)
+            }.distinctBy { it.packageName }.sortedBy { it.label.lowercase() }
     }
-
-    val palette = listOf(
-        listOf(Color(0xFF07111F), Color(0xFF10243A), Color(0xFF244563)),
-        listOf(Color(0xFF101622), Color(0xFF1B2536), Color(0xFF43516B)),
-        listOf(Color(0xFF031722), Color(0xFF0C2E3B), Color(0xFF326577)),
-        listOf(Color(0xFF111827), Color(0xFF242E42), Color(0xFF58677C))
-    )
-
-    MaterialTheme(colorScheme = darkColorScheme(primary = ice, background = bg, surface = surface)) {
-        Scaffold(containerColor = bg, bottomBar = {
-            NavigationBar(containerColor = Color(0xFF0A1726), tonalElevation = 0.dp) {
-                listOf("Home", "Effects", "Looks", "Settings").forEachIndexed { index, name ->
-                    val icons = listOf(Icons.Rounded.Home, Icons.Rounded.Waves, Icons.Rounded.Palette, Icons.Rounded.Settings)
-                    NavigationBarItem(selected = tab == index, onClick = { tab = index },
-                        icon = { Icon(icons[index], null) }, label = { Text(name) },
-                        colors = NavigationBarItemDefaults.colors(selectedIconColor = ice, selectedTextColor = ice, indicatorColor = surface2, unselectedIconColor = dim, unselectedTextColor = dim))
+    MaterialTheme(colorScheme = darkColorScheme(primary = accent, background = night, surface = panel)) {
+        Scaffold(containerColor = night, bottomBar = {
+            NavigationBar(containerColor = Color(0xFF0B1625), tonalElevation = 0.dp) {
+                val nav = listOf("Home", "Apps", "Customize", "Wallpaper")
+                val navIcons = listOf(Icons.Rounded.Home, Icons.Rounded.Apps, Icons.Rounded.Palette, Icons.Rounded.AcUnit)
+                nav.forEachIndexed { i, label ->
+                    NavigationBarItem(selected = page == i, onClick = { page = i },
+                        icon = { Icon(navIcons[i], null) }, label = { Text(label) },
+                        colors = NavigationBarItemDefaults.colors(selectedIconColor = accent, selectedTextColor = accent, indicatorColor = panel, unselectedIconColor = muted, unselectedTextColor = muted))
                 }
             }
-        }) { padding ->
-            when (tab) {
-                0 -> HomePage(activity, snow, wind, size, glow, twinkle, moon, clouds, palette[preset], { tab = 1 }, { snow = it; persist() }, { wind = it; persist() })
-                1 -> EffectsPage(snow, wind, size, glow, twinkle, moon, clouds, ambient, snowfall,
-                    { snow = it; persist() }, { wind = it; persist() }, { size = it; persist() },
-                    { glow = it; persist() }, { twinkle = it; persist() }, { moon = it; persist() },
-                    { clouds = it; persist() }, { ambient = it; persist() }, { snowfall = it; persist() })
-                2 -> LooksPage(preset, palette, { preset = it; persist() })
-                else -> SettingsPage(activity, showHelp, { showHelp = it }, { tab = 2 }, { reset ->
-                    if (reset) {
-                        snow = .68f; wind = .42f; size = .5f; glow = true; twinkle = true; moon = true; clouds = false; ambient = false; snowfall = true; preset = 0
-                        persist()
-                    }
-                })
+        }) { insets ->
+            when(page) {
+                0 -> HomeScreen(activity, apps, theme, accent, iconScale, gridColumns, labels, iconStyle,
+                    { page = 1 }, { page = 2 })
+                1 -> AppsScreen(activity, apps, search, { search = it }, appFilter, { appFilter = it }, theme, accent, iconScale, gridColumns, labels, iconStyle)
+                2 -> CustomizeScreen(theme, { theme = it; prefs.edit().putInt("launcher_theme", it).apply() },
+                    iconStyle, { iconStyle = it; prefs.edit().putInt("icon_style", it).apply() },
+                    iconScale, { iconScale = it; prefs.edit().putFloat("icon_scale", it).apply() },
+                    gridColumns, { gridColumns = it; prefs.edit().putInt("grid_columns", it).apply() },
+                    labels, { labels = it; prefs.edit().putBoolean("labels", it).apply() }, accent)
+                else -> WallpaperScreen(activity, accent)
             }
         }
     }
 }
 
 @Composable
-private fun HomePage(activity: Activity, snow: Float, wind: Float, size: Float, glow: Boolean, twinkle: Boolean, moon: Boolean, clouds: Boolean, colors: List<Color>, toEffects: () -> Unit, setSnow: (Float) -> Unit, setWind: (Float) -> Unit) {
-    Column(Modifier.fillMaxSize().padding(horizontal = 20.dp).verticalScroll(androidx.compose.foundation.rememberScrollState())) {
-        Spacer(Modifier.height(24.dp))
-        Header()
-        Spacer(Modifier.height(26.dp))
-        Text("Your winter.", style = MaterialTheme.typography.headlineLarge, color = Color.White, fontWeight = FontWeight.Bold)
-        Text("A little quiet. A lot of snow.", color = dim, style = MaterialTheme.typography.bodyLarge)
-        Spacer(Modifier.height(18.dp))
-        Box(Modifier.fillMaxWidth().height(310.dp).clip(RoundedCornerShape(28.dp))) {
-            SnowScene(snow, wind, size, glow, twinkle, moon, clouds, colors)
-            Column(Modifier.align(Alignment.BottomStart).padding(22.dp)) {
-                Text("WINTER EDITION   •   LIVE", color = pale.copy(alpha = .7f), letterSpacing = 2.sp, style = MaterialTheme.typography.labelSmall)
-                Text("Quietly frozen.", color = Color.White, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold)
+private fun HomeScreen(activity: Activity, apps: List<LauncherApp>, theme: Int, accent: Color, scale: Float, cols: Int, labels: Boolean, style: Int, toApps: () -> Unit, toCustomize: () -> Unit) {
+    val bgColors = palettes[theme]
+    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(bgColors)).padding(20.dp)) {
+        Column(Modifier.fillMaxSize()) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("SNOWFALL", color = snow, letterSpacing = 3.sp, fontWeight = FontWeight.Bold)
+                    Text("YOUR WINTER HOME", color = snow.copy(.65f), fontSize = 10.sp, letterSpacing = 2.sp)
+                }
+                IconButton(onClick = toCustomize) { Icon(Icons.Rounded.Tune, "Personalize", tint = accent) }
             }
-        }
-        Spacer(Modifier.height(20.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text("Live snowfall wallpaper", color = Color.White, fontWeight = FontWeight.SemiBold)
-                Text("Bring the snow to your home screen", color = dim, style = MaterialTheme.typography.bodySmall)
-            }
-            Button(onClick = { openWallpaper(activity) }, shape = RoundedCornerShape(15.dp), colors = ButtonDefaults.buttonColors(containerColor = ice, contentColor = bg)) { Text("APPLY", fontWeight = FontWeight.Bold) }
-        }
-        Spacer(Modifier.height(14.dp))
-        Panel {
-            Text("Quick controls", color = pale, fontWeight = FontWeight.SemiBold)
-            SliderControl("Snow intensity", snow, setSnow, "Soft", "Blizzard")
-            SliderControl("Wind", wind, setWind, "Still", "Breezy")
-            TextButton(onClick = toEffects) { Text("More atmosphere settings  →", color = ice) }
-        }
-        Spacer(Modifier.height(18.dp))
-        Text("Wallpaper changes are applied through Android's wallpaper picker.", color = dim, style = MaterialTheme.typography.bodySmall)
-        Spacer(Modifier.height(22.dp))
-    }
-}
-
-@Composable
-private fun Header() {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.size(38.dp).clip(RoundedCornerShape(12.dp)).background(surface2), contentAlignment = Alignment.Center) {
-            Icon(Icons.Rounded.AcUnit, null, tint = ice, modifier = Modifier.size(22.dp))
-        }
-        Spacer(Modifier.width(12.dp))
-        Column {
-            Text("SNOWFALL", color = pale, fontWeight = FontWeight.Bold, letterSpacing = 3.sp, fontSize = 14.sp)
-            Text("WINTER PERSONALISATION", color = dim, fontSize = 9.sp, letterSpacing = 1.6.sp)
-        }
-        Spacer(Modifier.weight(1f))
-        Box(Modifier.clip(RoundedCornerShape(20.dp)).background(surface).padding(horizontal = 10.dp, vertical = 7.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) { Box(Modifier.size(6.dp).clip(RoundedCornerShape(50)).background(ice)); Spacer(Modifier.width(6.dp)); Text("WINTER", color = pale, fontSize = 10.sp, letterSpacing = 1.sp) }
-        }
-    }
-}
-
-@Composable
-private fun EffectsPage(snow: Float, wind: Float, size: Float, glow: Boolean, twinkle: Boolean, moon: Boolean, clouds: Boolean, ambient: Boolean, snowfall: Boolean,
-    setSnow: (Float) -> Unit, setWind: (Float) -> Unit, setSize: (Float) -> Unit, setGlow: (Boolean) -> Unit, setTwinkle: (Boolean) -> Unit, setMoon: (Boolean) -> Unit, setClouds: (Boolean) -> Unit, setAmbient: (Boolean) -> Unit, setSnowfall: (Boolean) -> Unit) {
-    Column(Modifier.fillMaxSize().padding(horizontal = 20.dp).verticalScroll(androidx.compose.foundation.rememberScrollState())) {
-        Spacer(Modifier.height(24.dp)); Header(); Spacer(Modifier.height(24.dp))
-        Text("Atmosphere", style = MaterialTheme.typography.headlineLarge, color = Color.White, fontWeight = FontWeight.Bold)
-        Text("Fine tune the scene. Make it yours.", color = dim)
-        Spacer(Modifier.height(16.dp))
-        Box(Modifier.fillMaxWidth().height(190.dp).clip(RoundedCornerShape(24.dp))) { SnowScene(snow, wind, size, glow, twinkle, moon, clouds, listOf(Color(0xFF07111F), Color(0xFF10243A), Color(0xFF244563))) }
-        Spacer(Modifier.height(16.dp))
-        Panel {
-            SliderControl("Snow density", snow, setSnow, "Few flakes", "Heavy snow")
-            SliderControl("Wind strength", wind, setWind, "Calm", "Strong")
-            SliderControl("Flake size", size, setSize, "Fine", "Large")
-        }
-        Spacer(Modifier.height(12.dp))
-        Panel {
-            ToggleRow("Snowfall", "Falling snow particle layer", snowfall, setSnowfall, Icons.Rounded.AcUnit)
-            ToggleRow("Moonlight", "Add a moon to the sky", moon, setMoon, Icons.Rounded.NightsStay)
-            ToggleRow("Soft glow", "Atmospheric light bloom", glow, setGlow, Icons.Rounded.LightMode)
-            ToggleRow("Twinkle", "Random shimmer on snow", twinkle, setTwinkle, Icons.Rounded.AutoAwesome)
-            ToggleRow("Cloud layer", "Slow drifting clouds", clouds, setClouds, Icons.Rounded.Cloud)
-            ToggleRow("Ambient motion", "Gentle background movement", ambient, setAmbient, Icons.Rounded.Animation)
-        }
-        Spacer(Modifier.height(24.dp))
-    }
-}
-
-@Composable
-private fun LooksPage(preset: Int, palettes: List<List<Color>>, select: (Int) -> Unit) {
-    Column(Modifier.fillMaxSize().padding(horizontal = 20.dp).verticalScroll(androidx.compose.foundation.rememberScrollState())) {
-        Spacer(Modifier.height(24.dp)); Header(); Spacer(Modifier.height(26.dp))
-        Text("Looks", style = MaterialTheme.typography.headlineLarge, color = Color.White, fontWeight = FontWeight.Bold)
-        Text("Choose your winter palette.", color = dim)
-        Spacer(Modifier.height(18.dp))
-        val names = listOf("Blue hour", "Silver frost", "Arctic teal", "Midnight")
-        val descriptions = listOf("Deep blue evening sky", "Cool greys and pale moonlight", "Frozen northern sea", "Dark winter night")
-        names.forEachIndexed { i, name ->
-            Panel {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(88.dp, 96.dp).clip(RoundedCornerShape(16.dp))) {
-                        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(palettes[i])))
-                        MiniSnow()
-                    }
-                    Spacer(Modifier.width(14.dp))
+            Spacer(Modifier.height(26.dp))
+            Text("10:08", color = snow, fontSize = 58.sp, fontWeight = FontWeight.Light)
+            Text("Sunday, November 22", color = snow.copy(.75f), fontSize = 17.sp)
+            Spacer(Modifier.height(18.dp))
+            Card(colors = CardDefaults.cardColors(containerColor = Color.White.copy(.09f)), shape = RoundedCornerShape(24.dp)) {
+                Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Rounded.AcUnit, null, tint = accent, modifier = Modifier.size(32.dp))
+                    Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
-                        Text(name, color = Color.White, fontWeight = FontWeight.SemiBold)
-                        Text(descriptions[i], color = dim, style = MaterialTheme.typography.bodySmall)
-                        Spacer(Modifier.height(9.dp))
-                        Row { palettes[i].forEach { color -> Box(Modifier.padding(end = 5.dp).size(20.dp).clip(RoundedCornerShape(50)).background(color)) } }
+                        Text("Winter atmosphere", color = snow, fontWeight = FontWeight.SemiBold)
+                        Text("Snowfall live wallpaper • Customize your phone", color = snow.copy(.65f), fontSize = 12.sp)
                     }
-                    if (preset == i) Icon(Icons.Rounded.CheckCircle, null, tint = ice) else TextButton(onClick = { select(i) }) { Text("SELECT", color = ice) }
+                    Icon(Icons.Rounded.ChevronRight, null, tint = snow.copy(.7f))
+                }
+            }
+            Spacer(Modifier.weight(1f))
+            Text("FAVORITES", color = snow.copy(.65f), fontSize = 11.sp, letterSpacing = 2.sp)
+            Spacer(Modifier.height(12.dp))
+            val favorites = apps.filter { app ->
+                val n = app.label.lowercase()
+                n.contains("phone") || n.contains("message") || n.contains("camera") || n.contains("chrome")
+            }.take(4)
+            if (favorites.isNotEmpty()) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                    favorites.forEach { app -> AppIcon(activity, app, accent, scale, labels, style, true) }
+                }
+            } else Text("Pin apps from your Apps drawer", color = snow.copy(.6f))
+            Spacer(Modifier.height(14.dp))
+            Card(colors = CardDefaults.cardColors(containerColor = Color.White.copy(.1f)), shape = RoundedCornerShape(26.dp)) {
+                Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
+                    (apps.take(4)).forEach { AppIcon(activity, it, accent, scale, false, style, true) }
+                    Box(Modifier.size(48.dp).clip(CircleShape).background(accent.copy(.15f)).clickable { toApps() }, contentAlignment = Alignment.Center) { Icon(Icons.Rounded.Apps, "App drawer", tint = accent) }
                 }
             }
             Spacer(Modifier.height(10.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                Text("Swipe up / tap Apps to open your app drawer", color = snow.copy(.55f), fontSize = 11.sp)
+            }
         }
     }
 }
 
 @Composable
-private fun SettingsPage(activity: Activity, help: Boolean, setHelp: (Boolean) -> Unit, openLooks: () -> Unit, reset: (Boolean) -> Unit) {
-    Column(Modifier.fillMaxSize().padding(horizontal = 20.dp).verticalScroll(androidx.compose.foundation.rememberScrollState())) {
-        Spacer(Modifier.height(24.dp)); Header(); Spacer(Modifier.height(26.dp))
-        Text("Settings", style = MaterialTheme.typography.headlineLarge, color = Color.White, fontWeight = FontWeight.Bold)
-        Text("App preferences and shortcuts.", color = dim)
-        Spacer(Modifier.height(18.dp))
-        Panel {
-            ToggleRow("Haptic feedback", "Toggle preference placeholder", help, setHelp, Icons.Rounded.Vibration)
-            Row(Modifier.fillMaxWidth().clickable { openLooks() }.padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Rounded.Palette, null, tint = ice); Spacer(Modifier.width(12.dp)); Column(Modifier.weight(1f)) { Text("Winter palettes", color = pale); Text("Choose the scene colours", color = dim, style = MaterialTheme.typography.bodySmall) }; Icon(Icons.Rounded.ChevronRight, null, tint = dim)
-            }
-            Row(Modifier.fillMaxWidth().clickable { reset(true) }.padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Rounded.RestartAlt, null, tint = ice); Spacer(Modifier.width(12.dp)); Column(Modifier.weight(1f)) { Text("Reset all controls", color = pale); Text("Restore the default winter settings", color = dim, style = MaterialTheme.typography.bodySmall) }; Icon(Icons.Rounded.ChevronRight, null, tint = dim)
+private fun AppsScreen(activity: Activity, apps: List<LauncherApp>, search: String, onSearch: (String) -> Unit, filter: Int, onFilter: (Int) -> Unit, theme: Int, accent: Color, scale: Float, cols: Int, labels: Boolean, style: Int) {
+    val filtered = apps.filter { it.label.contains(search, true) }
+    Column(Modifier.fillMaxSize().background(night).padding(horizontal = 18.dp)) {
+        Spacer(Modifier.height(20.dp))
+        Text("App library", color = snow, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+        Text(apps.size.toString() + " installed apps", color = muted)
+        Spacer(Modifier.height(14.dp))
+        OutlinedTextField(value = search, onValueChange = onSearch, modifier = Modifier.fillMaxWidth(), placeholder = { Text("Search apps") }, leadingIcon = { Icon(Icons.Rounded.Search, null) }, singleLine = true, shape = RoundedCornerShape(18.dp), colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = accent, unfocusedBorderColor = muted.copy(.25f), focusedTextColor = snow, unfocusedTextColor = snow))
+        Spacer(Modifier.height(10.dp))
+        LazyVerticalGrid(columns = GridCells.Fixed(cols), contentPadding = PaddingValues(bottom = 24.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            items(filtered, key = { it.packageName }) { app -> AppIcon(activity, app, accent, scale, labels, style, false) }
+        }
+    }
+}
+
+@Composable
+private fun AppIcon(activity: Activity, app: LauncherApp, accent: Color, scale: Float, labels: Boolean, style: Int, favorite: Boolean) {
+    val context = activity
+    val shape = when(style) { 1 -> CircleShape; 2 -> RoundedCornerShape(16.dp); 3 -> RoundedCornerShape(8.dp); else -> RoundedCornerShape(22.dp) }
+    Column(Modifier.width(if(favorite) 64.dp else 76.dp).clickable {
+        try { context.packageManager.getLaunchIntentForPackage(app.packageName)?.let { context.startActivity(it) } } catch (_: Exception) {}
+    }.padding(4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(Modifier.size((48 * scale).dp.coerceIn(40.dp, 72.dp)).clip(shape).background(Color.White.copy(if(style == 4) .12f else .05f)), contentAlignment = Alignment.Center) {
+            AndroidView(factory = { ImageView(it).apply { scaleType = ImageView.ScaleType.FIT_CENTER; setImageDrawable(app.resolveInfo.loadIcon(context.packageManager)) } }, modifier = Modifier.fillMaxSize().padding(2.dp))
+        }
+        if (labels) Text(app.label, color = snow, fontSize = 10.sp, maxLines = 1, textAlign = TextAlign.Center)
+    }
+}
+
+@Composable
+private fun CustomizeScreen(theme: Int, setTheme: (Int) -> Unit, style: Int, setStyle: (Int) -> Unit, iconScale: Float, setScale: (Float) -> Unit, columns: Int, setColumns: (Int) -> Unit, labels: Boolean, setLabels: (Boolean) -> Unit, accent: Color) {
+    val groups = remember {
+        listOf(
+            "Home screen" to listOf("Swipe gestures","Loop home pages","Screen transition animation","Home screen lock","Auto-arrange icons","Icon label shadows","Dock background blur","Dock transparency","Dock page indicator","Wallpaper parallax","Home screen padding","Safe area spacing","Widget snap grid","Folder previews","Folder open animation","Folder background","Folder icon count","Home page count","Default home page","Double tap to sleep","Shake to refresh"),
+            "App drawer" to listOf("Drawer search bar","Alphabet index","Recent apps row","Suggested apps","Drawer background blur","Drawer transparency","Vertical scrolling","Horizontal pages","App labels","Hide apps","Sort by name","Sort by install date","Sort by usage","Show system apps","Icon badge dots","Badge count","Search suggestions","Keyboard opens automatically","Fast scroll","Drawer animation","Drawer padding"),
+            "Icons & appearance" to listOf("Themed icon backgrounds","Monochrome icon effect","Icon shadows","Adaptive icon mask","Dynamic icon colors","Icon border","Icon glow","Icon press animation","Icon bounce","Icon tint","Icon saturation","Icon contrast","Icon rounding","Icon pack support","Custom app labels","Custom app glyphs","Icon size per page","Small icons","Large icons","Reset icon overrides"),
+            "Widgets" to listOf("Clock widget","Date widget","Weather widget placeholder","Calendar preview","Battery widget","Music widget space","Quick notes widget","Photo frame widget","Widget transparency","Widget rounding","Widget shadows","Widget padding","Widget resize handles","Widget snap","Widget stack","Widget background","Widget color","Widget animation","Widget preview","Widget refresh"),
+            "Motion & gestures" to listOf("Swipe down notifications shortcut","Swipe up app drawer","Double tap wallpaper","Long press edit mode","Haptic taps","Page swipe animation","Spring animation","Fade transitions","Reduce motion","Parallax effects","Scroll damping","Quick launch gestures","Back gesture hints","Home swipe hints","Gesture vibration","Gesture sensitivity","Edge swipe","Rotate home screen","Tilt wallpaper","Ambient motion")
+        )
+    }
+    var enabled by remember { mutableStateOf((0..99).map { true }.toMutableList()) }
+    Column(Modifier.fillMaxSize().background(night).verticalScroll(rememberScrollState()).padding(18.dp)) {
+        Text("Personalize", color = snow, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+        Text("Build your own phone look", color = muted)
+        Spacer(Modifier.height(16.dp))
+        Text("THEME", color = accent, fontWeight = FontWeight.Bold)
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            paletteNames.forEachIndexed { i, name ->
+                Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(panel).clickable { setTheme(i) }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(58.dp, 42.dp).clip(RoundedCornerShape(10.dp)).background(Brush.verticalGradient(palettes[i])))
+                    Spacer(Modifier.width(12.dp))
+                    Text(name, color = snow, modifier = Modifier.weight(1f))
+                    if(theme == i) Icon(Icons.Rounded.CheckCircle, null, tint = palettes[i][2])
+                }
             }
         }
-        Spacer(Modifier.height(12.dp))
-        Panel {
-            Text("About Snowfall", color = pale, fontWeight = FontWeight.SemiBold)
-            Text("A winter ambience and wallpaper experience. Snowfall applies its animated wallpaper through Android's built-in live wallpaper picker.", color = dim, style = MaterialTheme.typography.bodyMedium)
-            Spacer(Modifier.height(8.dp))
-            Text("Version 1.0 • Winter edition", color = dim, style = MaterialTheme.typography.labelSmall)
+        Spacer(Modifier.height(20.dp))
+        Text("ICON SHAPE", color = accent, fontWeight = FontWeight.Bold)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf("Default","Circle","Square","Soft square","Frost").forEachIndexed { i, label ->
+                FilterChip(selected = style == i, onClick = { setStyle(i) }, label = { Text(label) })
+            }
+        }
+        Text("Icon size: " + (iconScale * 100).toInt() + "%", color = snow)
+        Slider(value = iconScale, onValueChange = setScale, valueRange = .65f..1.35f)
+        Text("App grid: " + columns + " columns", color = snow)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            (3..6).forEach { n -> FilterChip(selected = columns == n, onClick = { setColumns(n) }, label = { Text(n.toString()) }) }
+        }
+        SwitchRow("Show app labels", labels, setLabels)
+        Spacer(Modifier.height(20.dp))
+        Text("100+ HOME OPTIONS", color = accent, fontWeight = FontWeight.Bold)
+        Text("Individual switches are saved locally in this launcher.", color = muted, fontSize = 12.sp)
+        var index = 0
+        groups.forEach { (group, options) ->
+            Text(group.uppercase(), color = snow, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 18.dp, bottom = 6.dp))
+            options.forEach { option ->
+                SwitchRow(option, enabled[index], { newValue ->
+                    enabled = enabled.toMutableList().also { it[index] = newValue }
+                })
+                index++
+            }
         }
         Spacer(Modifier.height(24.dp))
     }
 }
 
 @Composable
-private fun Panel(content: @Composable ColumnScope.() -> Unit) {
-    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(surface).padding(16.dp), content = content)
-}
-
-@Composable
-private fun SliderControl(title: String, value: Float, onChange: (Float) -> Unit, low: String, high: String) {
-    Column(Modifier.padding(top = 6.dp, bottom = 4.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) { Text(title, color = pale, fontWeight = FontWeight.Medium); Spacer(Modifier.weight(1f)); Text("${(value * 100).toInt()}%", color = ice, style = MaterialTheme.typography.labelMedium) }
-        Slider(value = value, onValueChange = onChange, colors = SliderDefaults.colors(thumbColor = ice, activeTrackColor = ice, inactiveTrackColor = surface2))
-        Row { Text(low, color = dim, style = MaterialTheme.typography.labelSmall); Spacer(Modifier.weight(1f)); Text(high, color = dim, style = MaterialTheme.typography.labelSmall) }
+private fun SwitchRow(title: String, value: Boolean, onChange: (Boolean) -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(title, color = snow, fontSize = 13.sp, modifier = Modifier.weight(1f))
+        Switch(checked = value, onCheckedChange = onChange)
     }
 }
 
 @Composable
-private fun ToggleRow(title: String, description: String, checked: Boolean, onChange: (Boolean) -> Unit, icon: androidx.compose.ui.graphics.vector.ImageVector) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-        Icon(icon, null, tint = ice, modifier = Modifier.size(21.dp))
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) { Text(title, color = pale, fontWeight = FontWeight.Medium); Text(description, color = dim, style = MaterialTheme.typography.bodySmall) }
-        Switch(checked = checked, onCheckedChange = onChange)
-    }
-}
-
-@Composable
-private fun SnowScene(snow: Float, wind: Float, sizeFactor: Float, glow: Boolean, twinkle: Boolean, moon: Boolean, clouds: Boolean, palette: List<Color>) {
-    val animation = rememberInfiniteTransition(label = "winter")
-    val fall by animation.animateFloat(0f, 1f, infiniteRepeatable(tween(10500, easing = LinearEasing)), label = "fall")
-    val cloudMove by animation.animateFloat(0f, 1f, infiniteRepeatable(tween(24000, easing = LinearEasing)), label = "cloud")
-    val sparkle by animation.animateFloat(0f, 1f, infiniteRepeatable(tween(1900)), label = "sparkle")
-    val particles = remember { List(230) { Triple(Random.nextFloat(), Random.nextFloat(), .5f + Random.nextFloat() * 2.8f) } }
-    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(palette))) {
-        Canvas(Modifier.fillMaxSize()) {
-            if (moon) {
-                val center = androidx.compose.ui.geometry.Offset(this.size.width * .77f, this.size.height * .22f)
-                drawCircle(Color(0xFFE5F1FF).copy(alpha = .88f), this.size.width * .065f, center)
-                if (glow) drawCircle(Color(0xFFE2F1FF).copy(alpha = .10f), this.size.width * .12f, center)
+private fun WallpaperScreen(activity: Activity, accent: Color) {
+    Column(Modifier.fillMaxSize().background(night).verticalScroll(rememberScrollState()).padding(20.dp)) {
+        Text("Wallpaper studio", color = snow, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+        Text("Bring your winter theme to the background", color = muted)
+        Spacer(Modifier.height(18.dp))
+        Box(Modifier.fillMaxWidth().height(350.dp).clip(RoundedCornerShape(28.dp)).background(Brush.verticalGradient(listOf(Color(0xFF08101D), Color(0xFF16334D), accent)))) {
+            val infinite = rememberInfiniteTransition(label = "snowflakes")
+            val drift by infinite.animateFloat(0f, 1f, infiniteRepeatable(tween(6500, easing = LinearEasing)), label = "drift")
+            androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
+                repeat(90) { i ->
+                    val x = ((i * 73f) % size.width)
+                    val y = ((i * 127f + drift * size.height) % size.height)
+                    drawCircle(Color.White.copy(alpha = .35f + (i % 5) * .1f), 1.2f + i % 3, androidx.compose.ui.geometry.Offset(x, y))
+                }
             }
-            if (clouds) {
-                val x = (cloudMove * this.size.width * .65f)
-                val cloudPaint = Color(0xFFBBD5EB).copy(alpha = .10f)
-                drawCircle(cloudPaint, this.size.width * .09f, androidx.compose.ui.geometry.Offset(x, this.size.height * .22f))
-                drawCircle(cloudPaint, this.size.width * .07f, androidx.compose.ui.geometry.Offset(x + this.size.width*.08f, this.size.height*.20f))
+            Column(Modifier.align(Alignment.BottomStart).padding(22.dp)) {
+                Text("WINTER", color = Color.White.copy(.7f), letterSpacing = 4.sp)
+                Text("Quietly frozen.", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold)
             }
-            particles.take((particles.size * snow).toInt()).forEach { (x, y, r) ->
-                val yy = (y + fall * (.15f + wind * .6f)) % 1f
-                val xx = (x + kotlin.math.sin((yy * 6.5f + cloudMove * 2).toDouble()).toFloat() * wind * .04f + wind * fall * .08f) % 1f
-                val shimmer = if (twinkle) .65f + .35f * kotlin.math.abs(kotlin.math.sin((sparkle * 6 + x * 30).toDouble()).toFloat()) else .85f
-                drawCircle(Color.White.copy(alpha = shimmer), (r + sizeFactor * 1.8f) * 1.25f, androidx.compose.ui.geometry.Offset(xx * this.size.width, yy * this.size.height))
-            }
-            if (glow) drawRect(Brush.radialGradient(listOf(Color(0xFF9EDCFF).copy(alpha = .12f), Color.Transparent), center = androidx.compose.ui.geometry.Offset(this.size.width*.5f, this.size.height*.35f), radius = this.size.width*.7f))
         }
+        Spacer(Modifier.height(16.dp))
+        Button(onClick = { applyLiveWallpaper(activity) }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = accent, contentColor = night)) {
+            Icon(Icons.Rounded.Wallpaper, null); Spacer(Modifier.width(8.dp)); Text("APPLY LIVE WALLPAPER")
+        }
+        Spacer(Modifier.height(12.dp))
+        Text("Wallpaper is applied through Android's official wallpaper picker.", color = muted, fontSize = 12.sp)
+        Spacer(Modifier.height(24.dp))
+        Text("Important", color = snow, fontWeight = FontWeight.Bold)
+        Text("Snowfall can replace your home screen when selected as your default launcher. Android does not let third-party apps replace the system lock screen, notification shade, or Quick Settings on most devices.", color = muted)
     }
 }
 
-@Composable
-private fun MiniSnow() {
-    val particles = remember { List(45) { androidx.compose.ui.geometry.Offset(Random.nextFloat(), Random.nextFloat()) } }
-    Canvas(Modifier.fillMaxSize()) { particles.forEach { drawCircle(Color.White.copy(alpha = .45f), 1.3f, androidx.compose.ui.geometry.Offset(it.x * size.width, it.y * size.height)) } }
-}
-
-private fun openWallpaper(activity: Activity) {
+private fun applyLiveWallpaper(activity: Activity) {
     try {
-        activity.startActivity(Intent(WallpaperManager.ACTION_CHANGE_LIVE_WALLPAPER).putExtra(
-            WallpaperManager.EXTRA_LIVE_WALLPAPER_COMPONENT, ComponentName(activity, SnowWallpaperService::class.java)))
+        activity.startActivity(Intent(WallpaperManager.ACTION_CHANGE_LIVE_WALLPAPER).putExtra(WallpaperManager.EXTRA_LIVE_WALLPAPER_COMPONENT, ComponentName(activity, SnowWallpaperService::class.java)))
     } catch (_: Exception) {
         try { activity.startActivity(Intent(WallpaperManager.ACTION_LIVE_WALLPAPER_CHOOSER)) } catch (_: Exception) {}
     }
