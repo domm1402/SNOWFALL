@@ -110,8 +110,8 @@ private fun HomePage(activity:Activity,apps:List<PhoneApp>,theme:Int,accent:Colo
             Text(hour,color=Color.White,fontSize=66.sp,fontWeight=FontWeight.ExtraLight,letterSpacing=(-2).sp)
             Text(date.uppercase(),color=Color.White.copy(.62f),fontSize=11.sp,letterSpacing=1.5.sp)
             Spacer(Modifier.height(30.dp))
-            Box(Modifier.fillMaxWidth().height(220.dp).clip(RoundedCornerShape(26.dp)).background(Brush.linearGradient(listOf(palettes[theme][1],palettes[theme][0],Color(0xFF07101A))))) ){
-                Canvas(Modifier.fillMaxSize()){ repeat(90){i->drawCircle(Color.White.copy(.28f+(i%4)*.08f),1f+(i%3),androidx.compose.ui.geometry.Offset((i*71f)%size.width,(i*139f)%size.height)) };drawCircle(accent.copy(.09f),size.minDimension*.35f,androidx.compose.ui.geometry.Offset(size.width*.74f,size.height*.25f)) }
+            Box(Modifier.fillMaxWidth().height(220.dp).clip(RoundedCornerShape(26.dp)).background(Brush.linearGradient(listOf(palettes[theme][1],palettes[theme][0],Color(0xFF07101A))))){
+                Canvas(Modifier.fillMaxSize()){ repeat(90){i->drawCircle(Color.White.copy(.28f+(i%4)*.08f),1f+(i%3),androidx.compose.ui.geometry.Offset((i*71f)%360f,(i*139f)%220f)) };drawCircle(accent.copy(.09f),80f,androidx.compose.ui.geometry.Offset(270f,50f)) }
                 Column(Modifier.align(Alignment.BottomStart).padding(22.dp)){
                     Text("SEASONAL WALLPAPER",color=Color.White.copy(.65f),fontSize=9.sp,letterSpacing=2.sp)
                     Text("Quietly frozen.",color=Color.White,fontSize=25.sp,fontWeight=FontWeight.Light)
