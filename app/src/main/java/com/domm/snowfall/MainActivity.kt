@@ -208,10 +208,53 @@ Spacer(Modifier.height(18.dp));Text("100 STORED-ONLY PREFERENCE SWITCHES",color=
 
 @Composable
 private fun WallpaperPage(activity:Activity,accent:Color){
+    val prefs=remember(activity){activity.getSharedPreferences("snowfall",Activity.MODE_PRIVATE)}
+    var snowEnabled by remember{mutableStateOf(prefs.getBoolean("snowfall",true))}
+    var glow by remember{mutableStateOf(prefs.getBoolean("glow",true))}
+    var density by remember{mutableFloatStateOf(prefs.getFloat("snow",.68f))}
+    var wind by remember{mutableFloatStateOf(prefs.getFloat("wind",.42f))}
+    var flakeSize by remember{mutableFloatStateOf(prefs.getFloat("size",.5f))}
     Column(Modifier.fillMaxSize().background(bg).verticalScroll(rememberScrollState()).padding(20.dp)){
-        Text("Snow studio",color=Color.White,fontSize=28.sp,fontWeight=FontWeight.Bold);Text("Animated winter wallpaper",color=muted);Spacer(Modifier.height(20.dp))
-        Box(Modifier.fillMaxWidth().height(350.dp).clip(RoundedCornerShape(28.dp)).background(Brush.verticalGradient(listOf(Color(0xFF06101F),Color(0xFF173957),accent)))){val anim=rememberInfiniteTransition(label="snow");val f by anim.animateFloat(0f,1f,infiniteRepeatable(tween(7000,easing=LinearEasing)),label="flakes");Canvas(Modifier.fillMaxSize()){repeat(100){i->drawCircle(Color.White.copy(.45f),1.4f+i%3,androidx.compose.ui.geometry.Offset((i*79f)%size.width,(i*137f+f*size.height)%size.height))}};Column(Modifier.align(Alignment.BottomStart).padding(22.dp)){Text("WINTER",color=Color.White.copy(.7f),letterSpacing=4.sp);Text("Quietly frozen.",color=Color.White,fontSize=28.sp,fontWeight=FontWeight.Bold)}}
-        Spacer(Modifier.height(16.dp));Button(onClick={try{activity.startActivity(Intent(WallpaperManager.ACTION_CHANGE_LIVE_WALLPAPER).putExtra(WallpaperManager.EXTRA_LIVE_WALLPAPER_COMPONENT,ComponentName(activity,SnowWallpaperService::class.java)))}catch(_:Exception){try{activity.startActivity(Intent(WallpaperManager.ACTION_LIVE_WALLPAPER_CHOOSER))}catch(_:Exception){}}},modifier=Modifier.fillMaxWidth(),colors=ButtonDefaults.buttonColors(containerColor=accent,contentColor=bg)){Icon(Icons.Rounded.Wallpaper,null);Spacer(Modifier.width(8.dp));Text("APPLY LIVE WALLPAPER")}
-        Spacer(Modifier.height(20.dp));Text("Android limitation",color=Color.White,fontWeight=FontWeight.Bold);Text("A third-party launcher can replace the home screen and app drawer. It cannot replace Android's lock screen, notification shade, Quick Settings, or system status icons.",color=muted)
+        Text("Snow studio",color=Color.White,fontSize=28.sp,fontWeight=FontWeight.Bold)
+        Text("Live wallpaper and snowfall controls",color=muted)
+        Spacer(Modifier.height(20.dp))
+        Box(Modifier.fillMaxWidth().height(350.dp).clip(RoundedCornerShape(28.dp)).background(Brush.verticalGradient(listOf(Color(0xFF06101F),Color(0xFF173957),accent)))){
+            val anim=rememberInfiniteTransition(label="snow")
+            val f by anim.animateFloat(0f,1f,infiniteRepeatable(tween(7000,easing=LinearEasing)),label="flakes")
+            Canvas(Modifier.fillMaxSize()){
+                if(glow)drawCircle(accent.copy(.09f),this.size.width*.42f,androidx.compose.ui.geometry.Offset(this.size.width*.72f,this.size.height*.28f))
+                if(snowEnabled)repeat((100*density).toInt()){i->
+                    val x=((i*79f+wind*f*80f)%this.size.width)
+                    val y=((i*137f+f*this.size.height)%this.size.height)
+                    drawCircle(Color.White.copy(.35f+(i%4)*.08f), (1.4f+i%3)*(0.65f+flakeSize),androidx.compose.ui.geometry.Offset(x,y))
+                }
+            }
+            Column(Modifier.align(Alignment.BottomStart).padding(22.dp)){
+                Text("WINTER",color=Color.White.copy(.7f),letterSpacing=4.sp)
+                Text("Quietly frozen.",color=Color.White,fontSize=28.sp,fontWeight=FontWeight.Bold)
+                Text("Preview responds to the controls below",color=Color.White.copy(.65f),fontSize=11.sp)
+            }
+        }
+        Spacer(Modifier.height(16.dp))
+        Button(onClick={try{activity.startActivity(Intent(WallpaperManager.ACTION_CHANGE_LIVE_WALLPAPER).putExtra(WallpaperManager.EXTRA_LIVE_WALLPAPER_COMPONENT,ComponentName(activity,SnowWallpaperService::class.java)))}catch(_:Exception){try{activity.startActivity(Intent(WallpaperManager.ACTION_LIVE_WALLPAPER_CHOOSER))}catch(_:Exception){}}},modifier=Modifier.fillMaxWidth(),colors=ButtonDefaults.buttonColors(containerColor=accent,contentColor=bg)){
+            Icon(Icons.Rounded.Wallpaper,null);Spacer(Modifier.width(8.dp));Text("APPLY LIVE WALLPAPER")
+        }
+        Spacer(Modifier.height(16.dp))
+        Card(colors=CardDefaults.cardColors(containerColor=Color(0xFF142237)),shape=RoundedCornerShape(22.dp)){
+            Column(Modifier.fillMaxWidth().padding(16.dp)){
+                Row(verticalAlignment=Alignment.CenterVertically){Text("Snowfall enabled",color=Color.White,modifier=Modifier.weight(1f));Switch(snowEnabled,{snowEnabled=it;prefs.edit().putBoolean("snowfall",it).apply()})}
+                Row(verticalAlignment=Alignment.CenterVertically){Text("Soft background glow",color=Color.White,modifier=Modifier.weight(1f));Switch(glow,{glow=it;prefs.edit().putBoolean("glow",it).apply()})}
+                Spacer(Modifier.height(12.dp))
+                Text("Snow density \${(density*100).toInt()}%",color=Color.White)
+                Slider(value=density,onValueChange={density=it;prefs.edit().putFloat("snow",it).apply()},valueRange=.05f..1f)
+                Text("Wind \${(wind*100).toInt()}%",color=Color.White)
+                Slider(value=wind,onValueChange={wind=it;prefs.edit().putFloat("wind",it).apply()},valueRange=0f..1f)
+                Text("Flake size \${(flakeSize*100).toInt()}%",color=Color.White)
+                Slider(value=flakeSize,onValueChange={flakeSize=it;prefs.edit().putFloat("size",it).apply()},valueRange=0f..1f)
+            }
+        }
+        Spacer(Modifier.height(20.dp))
+        Text("System limitation",color=Color.White,fontWeight=FontWeight.Bold)
+        Text("The live wallpaper is installed through Android's wallpaper picker. Snow, wind, flake size and glow are read by the wallpaper service and update while it is running. A launcher cannot replace Android's lock screen, notification shade, Quick Settings, or system status icons.",color=muted)
     }
 }
