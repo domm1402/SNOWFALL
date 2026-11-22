@@ -99,7 +99,7 @@ private fun HomePage(activity:Activity,apps:List<PhoneApp>,theme:Int,accent:Colo
     val hour=java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))
     val favorites=apps.filter{a->val n=a.label.lowercase();n.contains("phone")||n.contains("camera")||n.contains("message")||n.contains("chrome")}.take(4)
     Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(palettes[theme][0],palettes[theme][1],bg)))){
-        Canvas(Modifier.fillMaxSize()){ repeat(70){i-> drawCircle(Color.White.copy(.12f+(i%5)*.04f),1f+(i%2),androidx.compose.ui.geometry.Offset((i*91f)%size.width,(i*157f)%size.height)) } }
+        Canvas(Modifier.fillMaxSize()){ repeat(70){i-> drawCircle(Color.White.copy(.12f+(i%5)*.04f),1f+(i%2),androidx.compose.ui.geometry.Offset((i*91f)%this.size.width,(i*157f)%this.size.height)) } }
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal=24.dp, vertical=26.dp)){
             Row(verticalAlignment=Alignment.CenterVertically){
                 Column(Modifier.weight(1f)){
