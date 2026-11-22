@@ -245,11 +245,11 @@ private fun WallpaperPage(activity:Activity,accent:Color){
                 Row(verticalAlignment=Alignment.CenterVertically){Text("Snowfall enabled",color=Color.White,modifier=Modifier.weight(1f));Switch(snowEnabled,{snowEnabled=it;prefs.edit().putBoolean("snowfall",it).apply()})}
                 Row(verticalAlignment=Alignment.CenterVertically){Text("Soft background glow",color=Color.White,modifier=Modifier.weight(1f));Switch(glow,{glow=it;prefs.edit().putBoolean("glow",it).apply()})}
                 Spacer(Modifier.height(12.dp))
-                Text("Snow density \${(density*100).toInt()}%",color=Color.White)
+                Text("Snow density ${(density*100).toInt()}%",color=Color.White)
                 Slider(value=density,onValueChange={density=it;prefs.edit().putFloat("snow",it).apply()},valueRange=.05f..1f)
-                Text("Wind \${(wind*100).toInt()}%",color=Color.White)
+                Text("Wind ${(wind*100).toInt()}%",color=Color.White)
                 Slider(value=wind,onValueChange={wind=it;prefs.edit().putFloat("wind",it).apply()},valueRange=0f..1f)
-                Text("Flake size \${(flakeSize*100).toInt()}%",color=Color.White)
+                Text("Flake size ${(flakeSize*100).toInt()}%",color=Color.White)
                 Slider(value=flakeSize,onValueChange={flakeSize=it;prefs.edit().putFloat("size",it).apply()},valueRange=0f..1f)
             }
         }
