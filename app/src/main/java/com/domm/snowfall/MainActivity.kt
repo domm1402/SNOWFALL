@@ -137,7 +137,7 @@ private fun HomePage(activity:Activity,apps:List<PhoneApp>,theme:Int,accent:Colo
             }
             Spacer(Modifier.height(20.dp))
             Row(Modifier.fillMaxWidth().height(68.dp).clip(RoundedCornerShape(18.dp)).background(Color.White.copy(.045f)).clickable{goApps()}.padding(horizontal=16.dp),verticalAlignment=Alignment.CenterVertically){
-                apps.take(4).forEach{AppIcon(activity,it,accent,.78f,false,shape)}
+                apps.take(4).forEach{AppIcon(activity,it,accent,.78f,false,shape,monochrome)}
                 Spacer(Modifier.weight(1f))
                 Icon(Icons.Rounded.Search,null,tint=Color.White.copy(.7f),modifier=Modifier.padding(end=4.dp))
             }
