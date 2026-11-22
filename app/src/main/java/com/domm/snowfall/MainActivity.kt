@@ -9,6 +9,7 @@ import android.content.pm.ResolveInfo
 import android.widget.ImageView
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.*
@@ -131,13 +132,13 @@ private fun AppsPage(activity:Activity,apps:List<PhoneApp>,query:String,onQuery:
         Spacer(Modifier.height(22.dp));Text("App drawer",color=Color.White,fontSize=28.sp,fontWeight=FontWeight.Bold);Text(apps.size.toString()+" installed apps",color=muted);Spacer(Modifier.height(12.dp))
         OutlinedTextField(query,onQuery,modifier=Modifier.fillMaxWidth(),placeholder={Text("Search apps")},leadingIcon={Icon(Icons.Rounded.Search,null)},singleLine=true,shape=RoundedCornerShape(18.dp))
         val filtered=apps.filter{it.label.contains(query,true)}
-        LazyVerticalGrid(columns=GridCells.Fixed(grid),contentPadding=PaddingValues(vertical=16.dp),horizontalArrangement=Arrangement.spacedBy(4.dp),verticalArrangement=Arrangement.spacedBy(12.dp){items(filtered,key={it.packageName}){AppIcon(activity,it,accent,size,labels,shape)}}
+        LazyVerticalGrid(columns=GridCells.Fixed(grid),contentPadding=PaddingValues(vertical=16.dp),horizontalArrangement=Arrangement.spacedBy(4.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) { items(filtered,key={it.packageName}) { AppIcon(activity,it,accent,size,labels,shape) } }
     }
 }
 
 @Composable
 private fun AppIcon(activity:Activity,app:PhoneApp,accent:Color,size:Float,labels:Boolean,shape:Int){
-    val iconShape=when(shape){1->CircleShape;2->RoundedCornerShape(8.dp);3->RoundedCornerShape(18.dp);4->RoundedCornerShape(50.dp);else->RoundedCornerShape(20.dp}
+    val iconShape=when(shape){1->CircleShape;2->RoundedCornerShape(8.dp);3->RoundedCornerShape(18.dp);4->RoundedCornerShape(50.dp);else->RoundedCornerShape(20.dp)}
     Column(Modifier.width(72.dp).clickable{try{activity.packageManager.getLaunchIntentForPackage(app.packageName)?.let{activity.startActivity(it)}}catch(_:Exception){} }.padding(4.dp),horizontalAlignment=Alignment.CenterHorizontally){
         Box(Modifier.size((48*size).dp.coerceIn(36.dp,72.dp)).clip(iconShape).background(Color.White.copy(.06f)),contentAlignment=Alignment.Center){
             AndroidView(factory={ImageView(it).apply{scaleType=ImageView.ScaleType.FIT_CENTER;setImageDrawable(app.info.loadIcon(activity.packageManager)}},modifier=Modifier.fillMaxSize().padding(2.dp))
@@ -160,7 +161,7 @@ private fun ThemePage(theme:Int,setTheme:(Int)->Unit,size:Float,setSize:(Float)-
     Column(Modifier.fillMaxSize().background(bg).verticalScroll(rememberScrollState()).padding(18.dp)){
         Text("Personalize your phone",color=Color.White,fontSize=28.sp,fontWeight=FontWeight.Bold);Text("Launcher theme, icons, and layout",color=muted);Spacer(Modifier.height(18.dp))
         Text("THEME PACKS",color=accent,fontWeight=FontWeight.Bold)
-        themeNames.forEachIndexed{i,n->Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color(0xFF142237)).clickable{setTheme(i)}.padding(12.dp),verticalAlignment=Alignment.CenterVertically){Box(Modifier.size(55.dp,40.dp).clip(RoundedCornerShape(10.dp)).background(Brush.verticalGradient(palettes[i]));Spacer(Modifier.width(12.dp));Text(n,color=Color.White,modifier=Modifier.weight(1f));if(theme==i)Icon(Icons.Rounded.CheckCircle,null,tint=palettes[i][2])};Spacer(Modifier.height(7.dp))}
+        themeNames.forEachIndexed{i,n->Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color(0xFF142237)).clickable{setTheme(i)}.padding(12.dp),verticalAlignment=Alignment.CenterVertically){Box(Modifier.size(55.dp,40.dp).clip(RoundedCornerShape(10.dp)).background(Brush.verticalGradient(palettes[i])));Spacer(Modifier.width(12.dp));Text(n,color=Color.White,modifier=Modifier.weight(1f));if(theme==i)Icon(Icons.Rounded.CheckCircle,null,tint=palettes[i][2])};Spacer(Modifier.height(7.dp))}
         Spacer(Modifier.height(12.dp));Text("ICON SHAPE",color=accent,fontWeight=FontWeight.Bold)
         Row(horizontalArrangement=Arrangement.spacedBy(4.dp)){listOf("Default","Circle","Square","Rounded","Frost").forEachIndexed{i,n->FilterChip(selected=shape==i,onClick={setShape(i)},label={Text(n)})}}
         Text("Icon size: "+(size*100).toInt()+"%",color=Color.White);Slider(value=size,onValueChange=setSize,valueRange=.65f..1.35f)
@@ -177,7 +178,7 @@ private fun WallpaperPage(activity:Activity,accent:Color){
     Column(Modifier.fillMaxSize().background(bg).verticalScroll(rememberScrollState()).padding(20.dp)){
         Text("Snow studio",color=Color.White,fontSize=28.sp,fontWeight=FontWeight.Bold);Text("Animated winter wallpaper",color=muted);Spacer(Modifier.height(20.dp))
         Box(Modifier.fillMaxWidth().height(350.dp).clip(RoundedCornerShape(28.dp)).background(Brush.verticalGradient(listOf(Color(0xFF06101F),Color(0xFF173957),accent)))){val anim=rememberInfiniteTransition(label="snow");val f by anim.animateFloat(0f,1f,infiniteRepeatable(tween(7000,easing=LinearEasing)),label="flakes");Canvas(Modifier.fillMaxSize()){repeat(100){i->drawCircle(Color.White.copy(.45f),1.4f+i%3,androidx.compose.ui.geometry.Offset((i*79f)%size.width,(i*137f+f*size.height)%size.height))}};Column(Modifier.align(Alignment.BottomStart).padding(22.dp)){Text("WINTER",color=Color.White.copy(.7f),letterSpacing=4.sp);Text("Quietly frozen.",color=Color.White,fontSize=28.sp,fontWeight=FontWeight.Bold)}}
-        Spacer(Modifier.height(16.dp));Button(onClick={try{activity.startActivity(Intent(WallpaperManager.ACTION_CHANGE_LIVE_WALLPAPER).putExtra(WallpaperManager.EXTRA_LIVE_WALLPAPER_COMPONENT,ComponentName(activity,SnowWallpaperService::class.java)))}catch(_:Exception){try{activity.startActivity(Intent(WallpaperManager.ACTION_LIVE_WALLPAPER_CHOOSER)}catch(_:Exception){}}},modifier=Modifier.fillMaxWidth(),colors=ButtonDefaults.buttonColors(containerColor=accent,contentColor=bg)){Icon(Icons.Rounded.Wallpaper,null);Spacer(Modifier.width(8.dp));Text("APPLY LIVE WALLPAPER")}
+        Spacer(Modifier.height(16.dp));Button(onClick={try{activity.startActivity(Intent(WallpaperManager.ACTION_CHANGE_LIVE_WALLPAPER).putExtra(WallpaperManager.EXTRA_LIVE_WALLPAPER_COMPONENT,ComponentName(activity,SnowWallpaperService::class.java)))}catch(_:Exception){try{activity.startActivity(Intent(WallpaperManager.ACTION_LIVE_WALLPAPER_CHOOSER))}catch(_:Exception){}}},modifier=Modifier.fillMaxWidth(),colors=ButtonDefaults.buttonColors(containerColor=accent,contentColor=bg)){Icon(Icons.Rounded.Wallpaper,null);Spacer(Modifier.width(8.dp));Text("APPLY LIVE WALLPAPER")}
         Spacer(Modifier.height(20.dp));Text("Android limitation",color=Color.White,fontWeight=FontWeight.Bold);Text("A third-party launcher can replace the home screen and app drawer. It cannot replace Android's lock screen, notification shade, Quick Settings, or system status icons.",color=muted)
     }
 }
